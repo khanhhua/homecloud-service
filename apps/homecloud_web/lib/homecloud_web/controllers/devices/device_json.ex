@@ -15,9 +15,14 @@ defmodule HomecloudWeb.Devices.DeviceJSON do
     %{data: data(device)}
   end
 
+  def show_on_create(%{device: device}) do
+    %{
+      data: %{secret_key: device.secret_key} |> Enum.into(data(device))
+    }
+  end
+
   defp data(%Device{} = device) do
     %{
-      id: device.id,
       hostname: device.hostname,
       ipv6: device.ipv6,
       expired_at: device.expired_at
