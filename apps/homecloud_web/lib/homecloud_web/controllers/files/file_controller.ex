@@ -6,25 +6,21 @@ defmodule HomecloudWeb.Files.FileController do
 
   action_fallback HomecloudWeb.FallbackController
 
-  def index(conn, _params) do
-    hostname = "homecloud"
-
+  def index(%Plug.Conn{assigns: %{current_hostname: hostname}} = conn, _params) do
     with {:ok, ipv6} <- Devices.resolve(hostname) do
-      IO.puts "Connecting to #{:inet.ntoa(ipv6)}..."
-        if Client.is_connected?(ipv6) do
-          files = Client.client!(ipv6)
-            |> Client.dir("/")
+      IO.puts("Connecting to #{:inet.ntoa(ipv6)}...")
 
-            render(conn, :index, files: files)
-        else
-          with {:ok, client} <- Client.connect(ipv6) do
-            files = Client.dir(client, "/")
-            render(conn, :index, files: files)
-          end
-        end
+      if Client.is_connected?(ipv6) do
+        files =
+          Client.client!(ipv6)
+          |> Client.dir("/")
+
+        render(conn, :index, files: files)
+      else
+        send_resp(conn, 401, "Unauthorized")
+      end
     else
       e ->
-        IO.inspect(e, label: :eresolve)
         send_resp(conn, 400, "Could not resolve hostname: #{hostname}")
     end
   end

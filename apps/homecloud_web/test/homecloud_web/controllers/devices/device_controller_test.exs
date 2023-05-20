@@ -28,10 +28,11 @@ defmodule HomecloudWeb.Devices.DeviceControllerTest do
   describe "create device" do
     test "renders device when data is valid", %{conn: conn} do
       conn = post(conn, ~p"/api/devices", device: @create_attrs)
+
       assert %{
-        "hostname" => hostname,
-        "secret_key" => secret_key
-      } = json_response(conn, 201)["data"]
+               "hostname" => hostname,
+               "secret_key" => secret_key
+             } = json_response(conn, 201)["data"]
 
       conn = get(conn, ~p"/api/devices/#{hostname}")
 
@@ -40,7 +41,7 @@ defmodule HomecloudWeb.Devices.DeviceControllerTest do
                "expired_at" => nil,
                "ipv6" => nil
              } = json_response(conn, 200)["data"]
-      
+
       assert %Device{secret_key: ^secret_key} = Homecloud.Devices.get_device!(hostname)
     end
 
@@ -53,7 +54,10 @@ defmodule HomecloudWeb.Devices.DeviceControllerTest do
   describe "update device" do
     setup [:create_device]
 
-    test "renders device when data is valid", %{conn: conn, device: %Device{hostname: hostname} = device} do
+    test "renders device when data is valid", %{
+      conn: conn,
+      device: %Device{hostname: hostname} = device
+    } do
       conn = put(conn, ~p"/api/devices/#{device.hostname}", device: @update_attrs)
       assert %{"hostname" => ^hostname} = json_response(conn, 200)["data"]
 

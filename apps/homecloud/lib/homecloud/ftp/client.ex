@@ -49,22 +49,24 @@ defmodule Homecloud.Ftp.Client do
   def fetch(pid, path), do: GenServer.call(pid, {:fetch, path})
 
   # Supervisor spec
-  def connect(host) do
-    DynamicSupervisor.start_child(Homecloud.Ftp.Supervisor, {__MODULE__, host})
+  def connect(host, username, password) do
+    DynamicSupervisor.start_child(
+      Homecloud.Ftp.Supervisor,
+      {__MODULE__, [host, username, password]}
+    )
   end
 
   @spec start_link(binary) :: {:ok, pid()}
-  def start_link(host) do
-    GenServer.start_link(__MODULE__, [host], name: {:global, host})
+  def start_link([host| _] = args) do
+    GenServer.start_link(__MODULE__, args, name: {:global, host})
   end
 
   # Callbacks
 
   @impl true
-  def init([host]) do
-    # TODO Username and Password should be dynamically loaded
+  def init([host, username, password]) do
     with {:ok, pid} <- ftp_open(host),
-         :ok <- :ftp.user(pid, 'homecloud', '1234') do
+         :ok <- :ftp.user(pid, username |> String.to_charlist(), password |> String.to_charlist()) do
       {:ok, State.new(pid, host)}
     else
       e -> {:stop, e}
