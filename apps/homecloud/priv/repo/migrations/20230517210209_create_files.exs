@@ -3,7 +3,6 @@ defmodule Homecloud.Repo.Migrations.CreateFiles do
 
   def change do
     create table(:files) do
-
       timestamps()
     end
   end

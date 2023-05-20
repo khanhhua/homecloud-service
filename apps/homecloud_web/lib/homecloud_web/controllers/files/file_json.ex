@@ -18,6 +18,7 @@ defmodule HomecloudWeb.Files.FileJSON do
 
   defp data(%File{} = file) do
     %{
+      type: "file",
       path: file.path,
       ctime: file.ctime,
       size: file.size
@@ -26,6 +27,7 @@ defmodule HomecloudWeb.Files.FileJSON do
 
   defp data(%Directory{} = file) do
     %{
+      type: "dir",
       path: file.path,
       ctime: file.ctime,
       size: file.size

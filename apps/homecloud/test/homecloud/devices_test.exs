@@ -16,6 +16,11 @@ defmodule Homecloud.DevicesTest do
       secret_key: "xfdf7TzmTK06skGN"
     }
 
+    test "resolve/1 resolves hostname to ipv6" do
+      device_fixture(hostname: "homecloud", ipv6: "fe80::1808:a530:af1a:9b5c")
+      assert {:ok, "fe80::1808:a530:af1a:9b5c"} = Devices.resolve("homecloud")
+    end
+
     test "list_devices/0 returns all devices" do
       device = device_fixture()
       assert Devices.list_devices() == [device]

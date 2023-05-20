@@ -1,22 +1,32 @@
 defmodule HomecloudWeb.Files.FileController do
   use HomecloudWeb, :controller
 
+  alias Homecloud.Devices
   alias Homecloud.Ftp.Client
 
   action_fallback HomecloudWeb.FallbackController
 
   def index(conn, _params) do
-    files =
-      if Client.is_connected?("localhost") do
-        Client.client!("localhost")
-        |> Client.dir("/")
-      else
-        with {:ok, client} <- Client.connect("localhost") do
-          Client.dir(client, "/")
-        end
-      end
+    hostname = "homecloud"
 
-    render(conn, :index, files: files)
+    with {:ok, ipv6} <- Devices.resolve(hostname) do
+      IO.puts "Connecting to #{:inet.ntoa(ipv6)}..."
+        if Client.is_connected?(ipv6) do
+          files = Client.client!(ipv6)
+            |> Client.dir("/")
+
+            render(conn, :index, files: files)
+        else
+          with {:ok, client} <- Client.connect(ipv6) do
+            files = Client.dir(client, "/")
+            render(conn, :index, files: files)
+          end
+        end
+    else
+      e ->
+        IO.inspect(e, label: :eresolve)
+        send_resp(conn, 400, "Could not resolve hostname: #{hostname}")
+    end
   end
 
   # def create(conn, %{"file" => file_params}) do

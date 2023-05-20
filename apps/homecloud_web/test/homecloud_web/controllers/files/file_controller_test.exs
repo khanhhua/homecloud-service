@@ -15,17 +15,17 @@ defmodule HomecloudWeb.Files.FileControllerTest do
 
   describe "index" do
     test "lists all files", %{conn: conn} do
-      conn = get(conn, ~p"/api/files/files")
+      conn = get(conn, ~p"/api/files")
       assert json_response(conn, 200)["data"] == []
     end
   end
 
   describe "create file" do
     test "renders file when data is valid", %{conn: conn} do
-      conn = post(conn, ~p"/api/files/files", file: @create_attrs)
+      conn = post(conn, ~p"/api/files", file: @create_attrs)
       assert %{"id" => id} = json_response(conn, 201)["data"]
 
-      conn = get(conn, ~p"/api/files/files/#{id}")
+      conn = get(conn, ~p"/api/files/#{id}")
 
       assert %{
                "id" => ^id
@@ -33,7 +33,7 @@ defmodule HomecloudWeb.Files.FileControllerTest do
     end
 
     test "renders errors when data is invalid", %{conn: conn} do
-      conn = post(conn, ~p"/api/files/files", file: @invalid_attrs)
+      conn = post(conn, ~p"/api/files", file: @invalid_attrs)
       assert json_response(conn, 422)["errors"] != %{}
     end
   end
@@ -42,10 +42,10 @@ defmodule HomecloudWeb.Files.FileControllerTest do
     setup [:create_file]
 
     test "renders file when data is valid", %{conn: conn, file: %File{id: id} = file} do
-      conn = put(conn, ~p"/api/files/files/#{file}", file: @update_attrs)
+      conn = put(conn, ~p"/api/files/#{file}", file: @update_attrs)
       assert %{"id" => ^id} = json_response(conn, 200)["data"]
 
-      conn = get(conn, ~p"/api/files/files/#{id}")
+      conn = get(conn, ~p"/api/files/#{id}")
 
       assert %{
                "id" => ^id
@@ -53,7 +53,7 @@ defmodule HomecloudWeb.Files.FileControllerTest do
     end
 
     test "renders errors when data is invalid", %{conn: conn, file: file} do
-      conn = put(conn, ~p"/api/files/files/#{file}", file: @invalid_attrs)
+      conn = put(conn, ~p"/api/files/#{file}", file: @invalid_attrs)
       assert json_response(conn, 422)["errors"] != %{}
     end
   end
@@ -62,11 +62,11 @@ defmodule HomecloudWeb.Files.FileControllerTest do
     setup [:create_file]
 
     test "deletes chosen file", %{conn: conn, file: file} do
-      conn = delete(conn, ~p"/api/files/files/#{file}")
+      conn = delete(conn, ~p"/api/files/#{file}")
       assert response(conn, 204)
 
       assert_error_sent 404, fn ->
-        get(conn, ~p"/api/files/files/#{file}")
+        get(conn, ~p"/api/files/#{file}")
       end
     end
   end

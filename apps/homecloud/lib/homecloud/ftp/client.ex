@@ -8,11 +8,13 @@ defmodule Homecloud.Ftp.Client do
   # Public API
   def is_connected?(host) do
     case :global.whereis_name(host) do
-      :undefined -> false
+      :undefined ->
+        false
+
       client_pid ->
         DynamicSupervisor.which_children(Homecloud.Ftp.Supervisor)
         |> Enum.any?(fn
-            {:undefined, ^client_pid, :worker, [Homecloud.Ftp.Client]} -> true
+          {:undefined, ^client_pid, :worker, [Homecloud.Ftp.Client]} -> true
           _ -> false
         end)
     end
@@ -59,9 +61,9 @@ defmodule Homecloud.Ftp.Client do
   # Callbacks
 
   @impl true
-  def init([host] = params) do
+  def init([host]) do
     # TODO Username and Password should be dynamically loaded
-    with {:ok, pid} <- :ftp.open(String.to_charlist(host), debug: :debug, mode: :passive),
+    with {:ok, pid} <- ftp_open(host),
          :ok <- :ftp.user(pid, 'homecloud', '1234') do
       {:ok, State.new(pid, host)}
     else
@@ -69,10 +71,27 @@ defmodule Homecloud.Ftp.Client do
     end
   end
 
+  defp ftp_open(host) when is_binary(host) do
+    :ftp.open(String.to_charlist(host), debug: :debug, mode: :passive)
+  end
+
+  defp ftp_open({_, _, _, _} = host) do
+    :ftp.open(host, debug: :debug, mode: :passive)
+  end
+
+  defp ftp_open({_, _, _, _, _, _, _, _} = host) do
+    :ftp.open(host, ipfamily: :inet6, debug: :debug, mode: :passive)
+  end
+
   @impl true
   def handle_call({:dir, path}, _from, %State{host: host, ftp_conn: conn} = state) do
     with {:ok, listing} <- :ftp.ls(conn, path |> String.to_charlist()) do
-      {:reply, parse_ftp_listing(listing), state}
+      entries =
+        listing
+        |> parse_ftp_listing()
+        |> Enum.map(fn %{path: child_path} = p -> %{p | path: path <> child_path} end)
+
+      {:reply, entries, state}
     else
       _ -> {:reply, [], state}
     end

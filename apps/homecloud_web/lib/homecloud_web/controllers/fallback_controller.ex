@@ -21,4 +21,11 @@ defmodule HomecloudWeb.FallbackController do
     |> put_view(html: HomecloudWeb.ErrorHTML, json: HomecloudWeb.ErrorJSON)
     |> render(:"404")
   end
+
+  def call(conn, {:error, _}) do
+    conn
+    |> put_status(:not_found)
+    |> put_view(html: HomecloudWeb.ErrorHTML, json: HomecloudWeb.ErrorJSON)
+    |> render(:"404")
+  end
 end

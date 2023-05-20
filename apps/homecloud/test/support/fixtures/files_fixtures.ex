@@ -10,9 +10,7 @@ defmodule Homecloud.FilesFixtures do
   def file_fixture(attrs \\ %{}) do
     {:ok, file} =
       attrs
-      |> Enum.into(%{
-
-      })
+      |> Enum.into(%{})
       |> Homecloud.Files.create_file()
 
     file

@@ -16,8 +16,8 @@ defmodule HomecloudWeb.Devices.DeviceController do
       else
         device_params = %{"ipv6" => ipv6}
 
-        with {:ok, %Device{} = device} <- Devices.update_device(device, device_params) do
-          send_resp(conn, :no_content, "")
+        with {:ok, %Device{}} <- Devices.update_device(device, device_params) do
+          send_resp(conn, 200, "")
         end
       end
     else
@@ -33,7 +33,7 @@ defmodule HomecloudWeb.Devices.DeviceController do
   def create(conn, %{"device" => device_params}) do
     # TODO Further means of authorization should be thought of
     # It could be a invitate token or a authcode or phone number or email or Google Robot check
-    with {:ok, %Device{} = device} <- Devices.create_device(%{"secret_key" => Devices.generate_secret_key()} |> Enum.into device_params) do
+    with {:ok, %Device{} = device} <- Devices.create_device(%{"secret_key" => Devices.generate_secret_key()} |> Enum.into(device_params)) do
       conn
       |> put_status(:created)
       |> put_resp_header("location", ~p"/api/devices/#{device.hostname}")

@@ -8,6 +8,22 @@ defmodule Homecloud.Devices do
 
   alias Homecloud.Devices.Device
 
+  @spec resolve(binary()) :: {:ok, term()} | {:error, term()}
+  def resolve(hostname) when is_binary(hostname) do
+    with %Device{ipv6: ipv6_s} <- Repo.one(Device, hostname: hostname) do
+      :inet.parse_ipv6_address(ipv6_s |> String.to_charlist())
+    else
+      nil -> {:error, :not_found}
+    end
+  end
+
+  def generate_secret_key() do
+    alphabet = Enum.to_list(?a..?z) ++ Enum.to_list(?0..?9)
+    length = 12
+
+    Enum.take_random(alphabet, length) |> String.Chars.to_string()
+  end
+
   @doc """
   Returns the list of devices.
 
@@ -17,13 +33,6 @@ defmodule Homecloud.Devices do
       [%Device{}, ...]
 
   """
-  def generate_secret_key() do
-    alphabet = Enum.to_list(?a..?z) ++ Enum.to_list(?0..?9)
-    length = 12
-
-    Enum.take_random(alphabet, length) |> String.Chars.to_string()
-  end
-
   def list_devices do
     Repo.all(Device)
   end
