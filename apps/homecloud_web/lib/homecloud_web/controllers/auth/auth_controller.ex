@@ -11,10 +11,7 @@ defmodule HomecloudWeb.Auth.AuthController do
 
   action_fallback HomecloudWeb.FallbackController
 
-  def login(conn, %{
-        "login" =>
-          %{"hostname" => hostname, "username" => username, "password" => password} = login
-      }) do
+  def login(conn, %{"hostname" => hostname, "username" => username, "password" => password} = login) do
     IO.inspect(login, label: LOGIN)
 
     {:ok, jwt} =

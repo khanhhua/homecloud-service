@@ -13,6 +13,8 @@ defmodule HomecloudWeb.Devices.DeviceController do
       if device.secret_key != secret_key do
         send_resp(conn, :not_found, "Not Found")
       else
+        # TODO Double check with device whether it has actually sent the update
+        # either by means of signed-request URL or ...
         device_params = %{"ipv6" => ipv6}
 
         with {:ok, %Device{}} <- Devices.update_device(device, device_params) do

@@ -50,10 +50,15 @@ defmodule Homecloud.Ftp.Client do
 
   # Supervisor spec
   def connect(host, username, password) do
-    DynamicSupervisor.start_child(
-      Homecloud.Ftp.Supervisor,
-      {__MODULE__, [host, username, password]}
-    )
+    case DynamicSupervisor.start_child(
+          Homecloud.Ftp.Supervisor,
+          {__MODULE__, [host, username, password]}
+        )
+    do
+      {:ok, _} = result -> result
+      {:error, {:already_started, pid}} -> {:ok, pid}
+      e -> e
+    end
   end
 
   @spec start_link(binary) :: {:ok, pid()}
@@ -74,15 +79,15 @@ defmodule Homecloud.Ftp.Client do
   end
 
   defp ftp_open(host) when is_binary(host) do
-    :ftp.open(String.to_charlist(host), debug: :debug, mode: :passive)
+    :ftp.open(String.to_charlist(host), mode: :active)
   end
 
   defp ftp_open({_, _, _, _} = host) do
-    :ftp.open(host, debug: :debug, mode: :passive)
+    :ftp.open(host, mode: :active)
   end
 
   defp ftp_open({_, _, _, _, _, _, _, _} = host) do
-    :ftp.open(host, ipfamily: :inet6, debug: :debug, mode: :passive)
+    :ftp.open(host, ipfamily: :inet6, mode: :active)
   end
 
   @impl true
