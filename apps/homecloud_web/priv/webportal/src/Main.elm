@@ -1,48 +1,34 @@
 module Main exposing (..)
 
-import Bootstrap.Button as Button
 import Bootstrap.CDN
 import Bootstrap.Navbar as Navbar
-import Bootstrap.Grid as Grid
-import Bootstrap.Grid.Col as Col
 
-import Bootstrap.Badge as Badge
-import Bootstrap.ListGroup as ListGroup
-import Bootstrap.Table as Table
-
-import Bootstrap.Utilities.Spacing as Spacing
 import Browser exposing (Document, UrlRequest)
-import Browser.Navigation exposing (Key)
-import Html exposing (a, div, text)
-import Html.Attributes exposing (href, style, width)
+import Browser.Navigation exposing (Key, replaceUrl)
+
+import Html exposing (h1, text)
+import Html.Attributes exposing (class)
+import Task
 import Url
 
-type Msg
-    = ClickedLink UrlRequest
-    | UrlChange Url.Url
-    | NavbarMsg Navbar.State
+import Api
+import Commons exposing (File, Model, Msg(..), resultToMsg)
+import Pages.FileExplorerPage as FileExplorerPage
+import Pages.LoginPage as LoginPage
+import Router exposing (Route(..), parseUrl)
 
-type alias File =
-    { name : String
-    , size : Int
-    , ctime : Int
-    }
-
-type alias Model =
-    { key : Key
-    , cwd : String
-    , files : List File
-    , navbarState : Navbar.State
-    }
 
 init : () -> Url.Url -> Key -> (Model, Cmd Msg)
 init _ url key =
     let
         ( navbarState, navCmd ) =
             Navbar.initialState NavbarMsg
+        route = parseUrl url
     in
     ( { key = key
-      , cwd = "/"
+      , route = route
+      , jwt = Nothing
+      , formLogin = { hostname = "", username = "", password = "" }
       , files = []
       , navbarState = navbarState
       }
@@ -54,48 +40,57 @@ view model =
     { title = "Homecloud Portal"
     , body =
         [ Bootstrap.CDN.stylesheet
-        , Navbar.config NavbarMsg
-            |> Navbar.withAnimation
-            |> Navbar.brand [ href "#" ] [ text "Homecloud Portal" ]
-            |> Navbar.items
-              [ Navbar.itemLink [ href "#" ] [ text "Item 1" ]
-              , Navbar.itemLink [ href "#" ] [ text "Item 2" ]
-              ]
-            |> Navbar.customItems
-              [ Navbar.textItem [] [ text "Some text" ] ]
-            |> Navbar.view model.navbarState
-        , Grid.containerFluid [ Spacing.mt1 ]
-            [ Grid.row []
-                [ Grid.col [ Col.xs2 ]
-                    [ ListGroup.custom
-                        [ ListGroup.button [ ListGroup.light ] [ text "Photos" ]
-                        , ListGroup.button [ ListGroup.light ] [ text "Documents" ]
-                        ]
-                    , div []
-                        [ Badge.pillPrimary [ Spacing.mx1 ] [ text "#Recently added" ]
-                        , Badge.pillSecondary [ Spacing.mx1] [ text "#Most visited" ]
-                        ]
-                    ]
-                , Grid.col []
-                    [ a [ href "#" ] [ text model.cwd ]
-                    , Table.simpleTable
-                        ( Table.simpleThead
-                            [ Table.th [ Table.cellAttr ( style "width" "60%" ) ] [ text "Name" ]
-                            , Table.th [] [ text "Size" ]
-                            , Table.th [] [ text "Created at" ]
-                            ]
-                        , Table.tbody [] []
-                        )
-                    ]
-                ]
-            ]
-        ]
+        ] ++
+        ( Maybe.map (\route ->
+            case route of
+                RouteLogin -> [ LoginPage.view model.formLogin ]
+                RouteFileExplorer path -> FileExplorerPage.view model (path |> Maybe.withDefault "/")
+            )
+            model.route
+        |> Maybe.withDefault [ h1 [ class "text-center" ] [ text "Nice try!" ] ]
+        )
     }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    case msg of
+        UrlChange url ->
+            let
+                route = parseUrl url
+                cmd = Maybe.map2 (\route_ jwt ->
+                        case route_ of
+                            RouteFileExplorer path ->
+                                Api.dir jwt (path |> Maybe.withDefault "/")
+                                |> Task.attempt (resultToMsg ApiError DirSuccess)
+                            _ -> Cmd.none
+                        )
+                        route
+                        model.jwt
+                    |> Maybe.withDefault Cmd.none
+            in
+            ( { model | route = route }, cmd )
+        UpdateLoginForm field value ->
+            let
+                formLogin = model.formLogin
+                updatedForm = case field of
+                    "hostname" -> {formLogin | hostname = value}
+                    "username" -> {formLogin | username = value}
+                    "password" -> {formLogin | password = value}
+                    _ -> formLogin
+            in
+                ( { model | formLogin = updatedForm }, Cmd.none )
+        Login loginForm ->
+            ( model
+            , Api.login loginForm.hostname loginForm.username loginForm.password
+                |> Task.attempt (resultToMsg ApiError LoginSuccess)
+            )
+        LoginSuccess jwt ->
+            ( { model | jwt = Just jwt }, replaceUrl model.key "/files?q=/")
+        DirSuccess files ->
+            ( { model | files = files }, Cmd.none)
+        _ ->
+            ( model, Cmd.none )
 
 subscriptions : Model -> Sub Msg
 subscriptions model = Navbar.subscriptions model.navbarState NavbarMsg
