@@ -10,6 +10,8 @@ import Bootstrap.Utilities.Border as Border
 import Commons exposing (FormLogin, Msg(..))
 import Html exposing (Html, h3, text)
 import Html.Attributes exposing (class)
+import Html.Attributes exposing (href)
+import Html exposing (a)
 
 
 view : FormLogin -> Html Msg
@@ -32,7 +34,7 @@ view formLogin =
                             ]
                         ]
                     , Form.group []
-                        [ Input.text
+                        [ Input.password
                             [ Input.onInput (UpdateLoginForm "password")
                             , Input.placeholder "Password"
                             ]

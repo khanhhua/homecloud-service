@@ -35,7 +35,7 @@ dir jwt path =
     Http.task
         { method = "GET"
         , headers = [header "authorization" <| "Bearer " ++ jwt]
-        , url = "/api/files?q=" ++ path
+        , url = "/api/browse?q=" ++ path
         , body = emptyBody
         , resolver = stringResolver (\response ->
             case response of
@@ -49,11 +49,10 @@ dir jwt path =
 
 loginResponseDecoder : D.Decoder String
 loginResponseDecoder =
-    D.field "data" <| D.field "jwt" D.string
+    D.field "jwt" D.string
 
 filelistResponseDecoder : D.Decoder (List File)
-filelistResponseDecoder =
-    D.field "data" <| D.list fileDecoder
+filelistResponseDecoder = D.list fileDecoder
 
 fileDecoder : D.Decoder File
 fileDecoder =

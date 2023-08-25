@@ -12,6 +12,8 @@ import Bootstrap.Utilities.Spacing as Spacing
 
 import Commons exposing (Model, Msg(..))
 import Html.Attributes exposing (href)
+import Html exposing (p)
+import Bootstrap.Button as Button
 
 
 view : Model -> String -> List (Html Msg)
@@ -39,7 +41,33 @@ view model cwd =
                     ]
                 ]
             , Grid.col []
-                [ a [ href "#" ] [ text cwd ]
+                [ p []
+                    ( if cwd == "/" then
+                        [ Button.linkButton
+                            [ Button.light
+                            , Button.attrs [href "#"]
+                            ] [ text cwd ]
+                        ]
+                    else
+                        [ ( String.reverse cwd
+                            |> String.indexes("/")
+                            |> List.take 1
+                            |> List.head
+                            |> Maybe.map(\index -> String.left (String.length cwd - index) cwd )
+                            |> Maybe.map(\parentPath ->
+                                Button.linkButton
+                                    [ Button.light
+                                    , Button.attrs [ href <| "/files?q=" ++ parentPath ]
+                                    ] [ text "[..]" ]
+                                )
+                            |> Maybe.withDefault (text "")
+                        )
+                        , Button.linkButton
+                            [ Button.light
+                            , Button.attrs [href "#"]
+                            ] [ text cwd ]
+                        ]
+                    )
                 , FileListing.view model.files cwd
                 ]
             ]

@@ -3,7 +3,7 @@ module Main exposing (..)
 import Bootstrap.CDN
 import Bootstrap.Navbar as Navbar
 
-import Browser exposing (Document, UrlRequest)
+import Browser exposing (Document)
 import Browser.Navigation exposing (Key, replaceUrl)
 
 import Html exposing (h1, text)
@@ -12,10 +12,13 @@ import Task
 import Url
 
 import Api
-import Commons exposing (File, Model, Msg(..), resultToMsg)
+import Commons exposing (Model, Msg(..), resultToMsg)
 import Pages.FileExplorerPage as FileExplorerPage
 import Pages.LoginPage as LoginPage
 import Router exposing (Route(..), parseUrl)
+import Browser exposing (UrlRequest(..))
+import Browser.Navigation exposing (pushUrl)
+import Tuple exposing (pair)
 
 
 init : () -> Url.Url -> Key -> (Model, Cmd Msg)
@@ -39,8 +42,8 @@ view : Model -> Document Msg
 view model =
     { title = "Homecloud Portal"
     , body =
-        [ Bootstrap.CDN.stylesheet
-        ] ++
+        Bootstrap.CDN.stylesheet
+        ::
         ( Maybe.map (\route ->
             case route of
                 RouteLogin -> [ LoginPage.view model.formLogin ]
@@ -70,6 +73,34 @@ update msg model =
                     |> Maybe.withDefault Cmd.none
             in
             ( { model | route = route }, cmd )
+        ClickedLink urlRequest ->
+            case urlRequest of
+                Internal url ->
+                    let
+                        mbRoute = parseUrl url
+                        cmds = Maybe.map2 pair mbRoute model.jwt
+                            |> Maybe.andThen (\(route, jwt) ->
+                                case route of
+                                    RouteFileExplorer mbPath ->
+                                        mbPath
+                                        |> Maybe.map (\path -> (path, jwt))
+                                        |> Maybe.withDefault ("/", jwt)
+                                        |> Just
+                                    _ -> Nothing
+                            )
+                            |> Maybe.map (\(path, jwt) ->
+                                Api.dir jwt path
+                                |> Task.attempt (resultToMsg ApiError DirSuccess)
+                            )
+                            |> Maybe.map (\dirCommand ->
+                                [ pushUrl model.key <| Url.toString url
+                                , dirCommand
+                                ]
+                            )
+                            |> Maybe.withDefault [ pushUrl model.key <| Url.toString url]
+                    in 
+                    ( { model | route = mbRoute }, Cmd.batch cmds )
+                _ -> ( model, Cmd.none )
         UpdateLoginForm field value ->
             let
                 formLogin = model.formLogin

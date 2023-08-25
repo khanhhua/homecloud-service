@@ -6,6 +6,8 @@ import Html.Attributes exposing (style)
 import Bootstrap.Table as Table
 
 import Commons exposing (File)
+import Html.Attributes exposing (href)
+import Html exposing (a)
 
 
 view : List File -> String -> Html msg
@@ -22,8 +24,16 @@ view files cwd =
         , Table.tbody []
             ( files
             |> List.map (\file ->
-                Table.tr []
-                    [ Table.td [] [ text <| String.dropLeft length file.path ]
+                let displayText = String.dropLeft length file.path
+                in Table.tr []
+                    [ Table.td []
+                        [ case file.type_ of
+                            "dir" ->
+                                a [ href <| "/files?q=" ++ file.path ]
+                                    [ text displayText
+                                    ]
+                            _ -> text displayText
+                        ]
                     , Table.td [] [ text <| String.fromInt file.size  ]
                     , Table.td [] [ text file.ctime ]
                     ]
