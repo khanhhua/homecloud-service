@@ -14,10 +14,14 @@ type Msg
     | NavbarMsg Navbar.State
     | UpdateLoginForm String String
     | Login { hostname : String, username : String, password : String}
-    | LoginSuccess String
+    | LoginSuccess (IPv6, JwtToken)
     | Dir String
     | DirSuccess (List File)
     | ApiError String
+
+
+type alias IPv6 = String
+type alias JwtToken = String
 
 type alias File =
     { type_ : String
@@ -35,7 +39,7 @@ type alias FormLogin =
 type alias Model =
     { key : Key
     , route : Maybe Route
-    , jwt : Maybe String
+    , authorizedEndpoint : Maybe (IPv6, JwtToken)
     , formLogin : FormLogin
     , files : List File
     , navbarState : Navbar.State

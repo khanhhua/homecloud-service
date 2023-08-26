@@ -5,37 +5,58 @@ import Http exposing (Error(..), Response(..), emptyBody, header, jsonBody, stri
 import Json.Decode as D
 import Json.Encode as E
 import Task exposing (Task)
+import Commons exposing (IPv6, JwtToken)
 
 
-login : String -> String -> String -> Task String String
-login hostname username password =
+resolveHostname : String -> Task String String
+resolveHostname hostname =
     Http.task
-        { method = "POST"
+        { method = "GET"
         , headers = []
-        , url = "/api/login"
-        , body = jsonBody
-            ( E.object
-                [ ( "hostname", E.string hostname )
-                , ( "username", E.string username )
-                , ( "password", E.string password )
-                ]
-            )
+        , url = "/api/devices/" ++ hostname
+        , body = Http.emptyBody
         , resolver = stringResolver (\response ->
             case response of
                 GoodStatus_ meta_ body ->
-                    D.decodeString loginResponseDecoder body
+                    D.decodeString hostnameResponseDecoder body
                     |> Result.mapError D.errorToString
                 _ -> Err "Network Issue"
             )
         , timeout = Just 30000
         }
 
-dir : String -> String -> Task String (List File)
-dir jwt path =
+login : String -> String -> String -> Task String (IPv6, JwtToken)
+
+login ipv6 username password =
+    Http.task
+        { method = "POST"
+        , headers = []
+        , url = "http://" ++ ipv6 ++ ":8080/api/login"
+        , body = jsonBody
+            ( E.object
+                [ ( "username", E.string username )
+                , ( "password", E.string password )
+                ]
+            )
+        , resolver = stringResolver (\response ->
+            case response of
+                GoodStatus_ meta_ body ->
+                    D.decodeString
+                        (   loginResponseDecoder
+                            |> D.map (\token -> (ipv6, token))
+                        ) body
+                    |> Result.mapError D.errorToString
+                _ -> Err "Network Issue"
+            )
+        , timeout = Just 30000
+        }
+
+dir : (String, String) -> String -> Task String (List File)
+dir (ipv6, jwt) path =
     Http.task
         { method = "GET"
         , headers = [header "authorization" <| "Bearer " ++ jwt]
-        , url = "/api/browse?q=" ++ path
+        , url = "http://" ++ ipv6 ++ ":8080/api/browse?q=" ++ path
         , body = emptyBody
         , resolver = stringResolver (\response ->
             case response of
@@ -47,12 +68,17 @@ dir jwt path =
         , timeout = Just 30000
         }
 
+hostnameResponseDecoder : D.Decoder String
+hostnameResponseDecoder =
+    D.field "data" <| D.field "ipv6" D.string
+
 loginResponseDecoder : D.Decoder String
 loginResponseDecoder =
-    D.field "jwt" D.string
+    D.field "data" <| D.field "jwt" D.string
 
 filelistResponseDecoder : D.Decoder (List File)
-filelistResponseDecoder = D.list fileDecoder
+filelistResponseDecoder =
+    D.field "data" <| D.list fileDecoder
 
 fileDecoder : D.Decoder File
 fileDecoder =

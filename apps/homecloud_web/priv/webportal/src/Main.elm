@@ -30,7 +30,7 @@ init _ url key =
     in
     ( { key = key
       , route = route
-      , jwt = Nothing
+      , authorizedEndpoint = Nothing
       , formLogin = { hostname = "", username = "", password = "" }
       , files = []
       , navbarState = navbarState
@@ -61,15 +61,15 @@ update msg model =
         UrlChange url ->
             let
                 route = parseUrl url
-                cmd = Maybe.map2 (\route_ jwt ->
+                cmd = Maybe.map2 (\route_ authorizedEndpoint ->
                         case route_ of
                             RouteFileExplorer path ->
-                                Api.dir jwt (path |> Maybe.withDefault "/")
+                                Api.dir authorizedEndpoint (path |> Maybe.withDefault "/")
                                 |> Task.attempt (resultToMsg ApiError DirSuccess)
                             _ -> Cmd.none
                         )
                         route
-                        model.jwt
+                        model.authorizedEndpoint
                     |> Maybe.withDefault Cmd.none
             in
             ( { model | route = route }, cmd )
@@ -78,18 +78,18 @@ update msg model =
                 Internal url ->
                     let
                         mbRoute = parseUrl url
-                        cmds = Maybe.map2 pair mbRoute model.jwt
-                            |> Maybe.andThen (\(route, jwt) ->
+                        cmds = Maybe.map2 pair mbRoute model.authorizedEndpoint
+                            |> Maybe.andThen (\(route, authorizedEndpoint) ->
                                 case route of
                                     RouteFileExplorer mbPath ->
                                         mbPath
-                                        |> Maybe.map (\path -> (path, jwt))
-                                        |> Maybe.withDefault ("/", jwt)
+                                        |> Maybe.map (\path -> (path, authorizedEndpoint))
+                                        |> Maybe.withDefault ("/", authorizedEndpoint)
                                         |> Just
                                     _ -> Nothing
                             )
-                            |> Maybe.map (\(path, jwt) ->
-                                Api.dir jwt path
+                            |> Maybe.map (\(path, authorizedEndpoint) ->
+                                Api.dir authorizedEndpoint path
                                 |> Task.attempt (resultToMsg ApiError DirSuccess)
                             )
                             |> Maybe.map (\dirCommand ->
@@ -113,11 +113,14 @@ update msg model =
                 ( { model | formLogin = updatedForm }, Cmd.none )
         Login loginForm ->
             ( model
-            , Api.login loginForm.hostname loginForm.username loginForm.password
+            , Api.resolveHostname loginForm.hostname
+                |> Task.andThen (\ipv6 ->
+                    Api.login ipv6 loginForm.username loginForm.password
+                )
                 |> Task.attempt (resultToMsg ApiError LoginSuccess)
             )
-        LoginSuccess jwt ->
-            ( { model | jwt = Just jwt }, replaceUrl model.key "/files?q=/")
+        LoginSuccess (ipv6, jwt) ->
+            ( { model | authorizedEndpoint = Just (ipv6, jwt) }, replaceUrl model.key "/files?q=/")
         DirSuccess files ->
             ( { model | files = files }, Cmd.none)
         _ ->

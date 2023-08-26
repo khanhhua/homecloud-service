@@ -42,34 +42,46 @@ view model cwd =
                 ]
             , Grid.col []
                 [ p []
-                    ( if cwd == "/" then
-                        [ Button.linkButton
+                    ( cwd
+                    |> String.split "/"
+                    |> scan (\parentPath displayText ->
+                        Button.linkButton
                             [ Button.light
-                            , Button.attrs [href "#"]
-                            ] [ text cwd ]
-                        ]
-                    else
-                        [ ( String.reverse cwd
-                            |> String.indexes("/")
-                            |> List.take 1
-                            |> List.head
-                            |> Maybe.map(\index -> String.left (String.length cwd - index) cwd )
-                            |> Maybe.map(\parentPath ->
-                                Button.linkButton
-                                    [ Button.light
-                                    , Button.attrs [ href <| "/files?q=" ++ parentPath ]
-                                    ] [ text "[..]" ]
-                                )
-                            |> Maybe.withDefault (text "")
+                            , Button.attrs [ href <| "/files?q=" ++ parentPath ]
+                            ] [ text displayText ]
                         )
-                        , Button.linkButton
-                            [ Button.light
-                            , Button.attrs [href "#"]
-                            ] [ text cwd ]
-                        ]
                     )
                 , FileListing.view model.files cwd
                 ]
             ]
         ]
     ]
+
+dedup : List a -> List a
+dedup = List.reverse << List.foldr
+    (\x acc ->
+    case acc of
+        (y :: _) ->
+            if x == y
+            then acc
+            else x :: acc
+        [] -> [x]
+    ) []
+    
+
+scan : (String -> String -> a) -> List String -> List a
+scan f =
+    dedup
+    >> List.foldr
+        (\x (s, acc) ->
+            let path =
+                    if s == ""
+                    then "/"
+                    else if s == "/"
+                        then "/" ++ x
+                        else s ++ "/" ++ x
+                element = f path (if x == "" then "/" else x)
+            in (path, element :: acc)
+        ) ("", []) 
+    >> Tuple.second
+    >> List.reverse
