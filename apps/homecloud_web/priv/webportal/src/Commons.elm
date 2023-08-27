@@ -14,7 +14,7 @@ type Msg
     | NavbarMsg Navbar.State
     | UpdateLoginForm String String
     | ResolveHostnameSuccess String
-    | Login { hostname : String, username : String, password : String}
+    | Login FormLogin
     | LoginSuccess (IPv6, JwtToken)
     | Dir String
     | DirSuccess (List File)
@@ -32,8 +32,7 @@ type alias File =
     }
 
 type alias FormLogin =
-    { hostname : String
-    , username : String
+    { username : String
     , password : String
     }
 

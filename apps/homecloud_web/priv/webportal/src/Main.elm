@@ -22,6 +22,7 @@ import Tuple exposing (pair)
 import Commons exposing (JwtToken)
 import Commons exposing (authorizedEndpoint)
 import Router exposing (getHostname)
+import SHA256
 
 type alias Flags = Maybe JwtToken
 
@@ -46,7 +47,7 @@ init mbJwtToken url key =
       , route = mbRoute
       , ipv6 = Nothing
       , jwtToken = mbJwtToken
-      , formLogin = { hostname = "", username = "", password = "" }
+      , formLogin = { username = "", password = "" }
       , files = []
       , navbarState = navbarState
       }
@@ -121,7 +122,6 @@ update msg model =
             let
                 formLogin = model.formLogin
                 updatedForm = case field of
-                    "hostname" -> {formLogin | hostname = value}
                     "username" -> {formLogin | username = value}
                     "password" -> {formLogin | password = value}
                     _ -> formLogin
@@ -130,9 +130,14 @@ update msg model =
         ResolveHostnameSuccess ipv6 ->
             ( { model | ipv6 = Just ipv6 }, Cmd.none )
         Login loginForm ->
+            let
+                hashed = loginForm.password
+                    |> SHA256.fromString
+                    |> SHA256.toHex
+            in
             ( model
             , model.ipv6
-                |> Maybe.map (\ipv6 -> Api.login ipv6 loginForm.username loginForm.password)
+                |> Maybe.map (\ipv6 -> Api.login ipv6 loginForm.username hashed)
                 |> ( Maybe.map <| Task.attempt (resultToMsg ApiError LoginSuccess) )
                 |> Maybe.withDefault Cmd.none
             )
