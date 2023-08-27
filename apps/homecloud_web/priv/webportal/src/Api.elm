@@ -25,7 +25,7 @@ resolveHostname hostname =
         , timeout = Just 30000
         }
 
-login : String -> String -> String -> Task String (IPv6, JwtToken)
+login : IPv6 -> String -> String -> Task String (IPv6, JwtToken)
 
 login ipv6 username password =
     Http.task

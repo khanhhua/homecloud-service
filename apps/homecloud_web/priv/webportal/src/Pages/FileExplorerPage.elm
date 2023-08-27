@@ -16,8 +16,8 @@ import Html exposing (p)
 import Bootstrap.Button as Button
 
 
-view : Model -> String -> List (Html Msg)
-view model cwd =
+view : Model -> String -> String -> List (Html Msg)
+view model hostname cwd =
     [ Navbar.config NavbarMsg
         |> Navbar.withAnimation
         |> Navbar.brand [ href "#" ] [ text "Homecloud Portal" ]
@@ -47,11 +47,11 @@ view model cwd =
                     |> scan (\parentPath displayText ->
                         Button.linkButton
                             [ Button.light
-                            , Button.attrs [ href <| "/files?q=" ++ parentPath ]
+                            , Button.attrs [ href <| "/" ++ hostname ++ "/files?q=" ++ parentPath ]
                             ] [ text displayText ]
                         )
                     )
-                , FileListing.view model.files cwd
+                , FileListing.view hostname cwd model.files
                 ]
             ]
         ]

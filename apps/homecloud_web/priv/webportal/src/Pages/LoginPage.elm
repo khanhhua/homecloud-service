@@ -23,12 +23,6 @@ view formLogin =
                     [ h3 [ Spacing.mb4, class "text-center" ] [ text "Login to your Homecloud" ]
                     , Form.group []
                         [ Input.text
-                            [ Input.onInput (UpdateLoginForm "hostname")
-                            , Input.placeholder "Hostname"
-                            ]
-                        ]
-                    , Form.group []
-                        [ Input.text
                             [ Input.onInput (UpdateLoginForm "username")
                             , Input.placeholder "Username"
                             ]

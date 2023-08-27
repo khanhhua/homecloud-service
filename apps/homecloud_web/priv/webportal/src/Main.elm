@@ -19,23 +19,38 @@ import Router exposing (Route(..), parseUrl)
 import Browser exposing (UrlRequest(..))
 import Browser.Navigation exposing (pushUrl)
 import Tuple exposing (pair)
+import Commons exposing (JwtToken)
+import Commons exposing (authorizedEndpoint)
+import Router exposing (getHostname)
 
+type alias Flags = Maybe JwtToken
 
-init : () -> Url.Url -> Key -> (Model, Cmd Msg)
-init _ url key =
+init : Flags -> Url.Url -> Key -> (Model, Cmd Msg)
+init mbJwtToken url key =
     let
         ( navbarState, navCmd ) =
             Navbar.initialState NavbarMsg
-        route = parseUrl url
+        mbRoute = parseUrl url
+        cmds = [ navCmd
+               , mbRoute
+                |> Maybe.map (\route ->
+                    case route of
+                        RouteLogin hostname -> hostname
+                        RouteFileExplorer hostname _ -> hostname
+                )
+                |> Maybe.map (Api.resolveHostname >> Task.attempt (resultToMsg ApiError ResolveHostnameSuccess))
+                |> Maybe.withDefault Cmd.none
+                ]
     in
     ( { key = key
-      , route = route
-      , authorizedEndpoint = Nothing
+      , route = mbRoute
+      , ipv6 = Nothing
+      , jwtToken = mbJwtToken
       , formLogin = { hostname = "", username = "", password = "" }
       , files = []
       , navbarState = navbarState
       }
-    , navCmd
+    , Cmd.batch cmds
     )
 
 view : Model -> Document Msg
@@ -46,8 +61,8 @@ view model =
         ::
         ( Maybe.map (\route ->
             case route of
-                RouteLogin -> [ LoginPage.view model.formLogin ]
-                RouteFileExplorer path -> FileExplorerPage.view model (path |> Maybe.withDefault "/")
+                RouteLogin _ -> [ LoginPage.view model.formLogin ]
+                RouteFileExplorer hostname path -> FileExplorerPage.view model hostname (path |> Maybe.withDefault "/")
             )
             model.route
         |> Maybe.withDefault [ h1 [ class "text-center" ] [ text "Nice try!" ] ]
@@ -61,15 +76,16 @@ update msg model =
         UrlChange url ->
             let
                 route = parseUrl url
-                cmd = Maybe.map2 (\route_ authorizedEndpoint ->
+                cmd = ( Maybe.map2 (\route_ authorizedEndpoint ->
                         case route_ of
-                            RouteFileExplorer path ->
+                            RouteFileExplorer _ path ->
                                 Api.dir authorizedEndpoint (path |> Maybe.withDefault "/")
                                 |> Task.attempt (resultToMsg ApiError DirSuccess)
                             _ -> Cmd.none
                         )
                         route
-                        model.authorizedEndpoint
+                        <| authorizedEndpoint model
+                    )
                     |> Maybe.withDefault Cmd.none
             in
             ( { model | route = route }, cmd )
@@ -78,18 +94,18 @@ update msg model =
                 Internal url ->
                     let
                         mbRoute = parseUrl url
-                        cmds = Maybe.map2 pair mbRoute model.authorizedEndpoint
-                            |> Maybe.andThen (\(route, authorizedEndpoint) ->
+                        cmds = ( Maybe.map2 pair (authorizedEndpoint model) mbRoute)
+                            |> Maybe.andThen (\(endpoint, route) ->
                                 case route of
-                                    RouteFileExplorer mbPath ->
+                                    RouteFileExplorer _ mbPath ->
                                         mbPath
-                                        |> Maybe.map (\path -> (path, authorizedEndpoint))
-                                        |> Maybe.withDefault ("/", authorizedEndpoint)
+                                        |> Maybe.map (\path -> (endpoint, path))
+                                        |> Maybe.withDefault (endpoint, "/")
                                         |> Just
                                     _ -> Nothing
                             )
-                            |> Maybe.map (\(path, authorizedEndpoint) ->
-                                Api.dir authorizedEndpoint path
+                            |> Maybe.map (\(endpoint, path) ->
+                                Api.dir endpoint path
                                 |> Task.attempt (resultToMsg ApiError DirSuccess)
                             )
                             |> Maybe.map (\dirCommand ->
@@ -111,16 +127,21 @@ update msg model =
                     _ -> formLogin
             in
                 ( { model | formLogin = updatedForm }, Cmd.none )
+        ResolveHostnameSuccess ipv6 ->
+            ( { model | ipv6 = Just ipv6 }, Cmd.none )
         Login loginForm ->
             ( model
-            , Api.resolveHostname loginForm.hostname
-                |> Task.andThen (\ipv6 ->
-                    Api.login ipv6 loginForm.username loginForm.password
-                )
-                |> Task.attempt (resultToMsg ApiError LoginSuccess)
+            , model.ipv6
+                |> Maybe.map (\ipv6 -> Api.login ipv6 loginForm.username loginForm.password)
+                |> ( Maybe.map <| Task.attempt (resultToMsg ApiError LoginSuccess) )
+                |> Maybe.withDefault Cmd.none
             )
         LoginSuccess (ipv6, jwt) ->
-            ( { model | authorizedEndpoint = Just (ipv6, jwt) }, replaceUrl model.key "/files?q=/")
+            let hostname = model.route |> Maybe.map getHostname |> Maybe.withDefault ""
+            in
+            ( { model | ipv6 = Just ipv6, jwtToken = Just jwt }
+            , replaceUrl model.key <| "/" ++ hostname ++  "/files?q=/"
+            )
         DirSuccess files ->
             ( { model | files = files }, Cmd.none)
         _ ->
@@ -129,7 +150,7 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions model = Navbar.subscriptions model.navbarState NavbarMsg
 
-main : Program () Model Msg
+main : Program Flags Model Msg
 main = Browser.application
   { init = init
   , view = view

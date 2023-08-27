@@ -10,8 +10,8 @@ import Html.Attributes exposing (href)
 import Html exposing (a)
 
 
-view : List File -> String -> Html msg
-view files cwd =
+view : String -> String -> List File -> Html msg
+view hostname cwd files =
     let
         length = String.length cwd
     in
@@ -29,7 +29,7 @@ view files cwd =
                     [ Table.td []
                         [ case file.type_ of
                             "dir" ->
-                                a [ href <| "/files?q=" ++ file.path ]
+                                a [ href <| "/" ++ hostname ++ "/files?q=" ++ file.path ]
                                     [ text displayText
                                     ]
                             _ -> text displayText
